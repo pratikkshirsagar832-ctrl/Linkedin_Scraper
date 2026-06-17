@@ -20,15 +20,16 @@ class LinkedInSessionManager:
             data = load(f)
             return data.get("cookies")
 
-    def _login_sync(self) -> bool:
-        """Sync method — runs in a thread pool to avoid blocking the event loop"""
+    def _login_sync(self, email: str, password: str) -> bool:
         from patchright.sync_api import sync_playwright
 
-        print("Opening browser for LinkedIn login...")
-        print("Please log in in the opened browser window (5 min timeout).")
+        print("Logging into LinkedIn with headless browser...")
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-setuid-sandbox"]
+            )
             context = browser.new_context(
                 viewport={"width": 1280, "height": 720},
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
@@ -36,9 +37,13 @@ class LinkedInSessionManager:
             page = context.new_page()
             page.goto("https://www.linkedin.com/login", timeout=60000)
 
-            print("Waiting for login...")
+            page.fill("#username", email)
+            page.fill("#password", password)
+            page.click("button[type=submit]")
+
+            print("Waiting for login to complete...")
             try:
-                page.wait_for_url("https://www.linkedin.com/feed/**", timeout=300000)
+                page.wait_for_url("https://www.linkedin.com/feed/**", timeout=30000)
                 cookies = context.cookies()
                 self.save_cookies([
                     {"name": c["name"], "value": c["value"], "domain": c["domain"],
@@ -54,9 +59,9 @@ class LinkedInSessionManager:
                 browser.close()
                 return False
 
-    async def login_flow(self) -> bool:
+    async def login_flow(self, email: str, password: str) -> bool:
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self._login_sync)
+        return await loop.run_in_executor(None, self._login_sync, email, password)
 
     def is_logged_in(self) -> bool:
         if not self.session_file.exists():

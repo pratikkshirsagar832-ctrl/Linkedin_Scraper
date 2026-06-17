@@ -117,8 +117,12 @@ import asyncio
 
 _login_task = None
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 @router.post("/session/login")
-async def session_login():
+async def session_login(req: LoginRequest):
     global _login_task
     from scraper.session_manager import LinkedInSessionManager
     mgr = LinkedInSessionManager()
@@ -127,10 +131,10 @@ async def session_login():
         return {"success": False, "message": "Login already in progress"}
 
     async def run_login():
-        return await mgr.login_flow()
+        return await mgr.login_flow(req.email, req.password)
 
     _login_task = asyncio.create_task(run_login())
-    return {"success": True, "message": "Login started. Browser window opened."}
+    return {"success": True, "message": "Login started."}
 
 
 @router.get("/session/login-status")

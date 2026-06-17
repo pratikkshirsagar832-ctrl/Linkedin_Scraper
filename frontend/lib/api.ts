@@ -32,8 +32,11 @@ export async function getSessionStatus(): Promise<SessionStatus> {
   return fetcher<SessionStatus>(`${BASE}/session/status`);
 }
 
-export async function triggerLogin(): Promise<{ success: boolean; message: string }> {
-  const start = await fetcher<{ success: boolean; message: string }>(`${BASE}/session/login`, { method: 'POST' });
+export async function triggerLogin(email: string, password: string): Promise<{ success: boolean; message: string }> {
+  const start = await fetcher<{ success: boolean; message: string }>(`${BASE}/session/login`, {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
   if (!start.success) return start;
 
   for (let i = 0; i < 150; i++) {

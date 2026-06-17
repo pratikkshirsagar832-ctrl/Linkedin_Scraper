@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxfixes3 \
     libxkbcommon0 \
     libxrandr2 \
+    libcairo2 \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 

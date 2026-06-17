@@ -23,6 +23,8 @@ export default function LeadDashboard() {
   const [hasMore, setHasMore] = useState(true);
   const [loginState, setLoginState] = useState<LoginState>("checking");
   const [loginError, setLoginError] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [tab, setTab] = useState<TabType>("search");
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function LeadDashboard() {
     setLoginState("logging_in");
     setLoginError("");
     try {
-      const res = await triggerLogin();
+      const res = await triggerLogin(email, password);
       if (res.success) {
         setLoginState("ready");
       } else {
@@ -46,7 +48,7 @@ export default function LeadDashboard() {
       setLoginState("failed");
       setLoginError(e.message || "Could not connect to backend");
     }
-  }, []);
+  }, [email, password]);
 
   const handleSearch = useCallback(async (kw: string, tf: TimeFilter) => {
     setKeyword(kw);
@@ -111,16 +113,8 @@ export default function LeadDashboard() {
           </div>
           <h2 className="text-xl font-bold text-white mb-2">LinkedIn Login Required</h2>
           <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-            To scrape search results, you need to log in to LinkedIn once.
-            A browser window will open — complete the login there, then return here.
+            Enter your LinkedIn credentials to log in. Your session is saved for future use.
           </p>
-
-          {loginState === "logging_in" && (
-            <div className="flex flex-col items-center gap-3 mb-4">
-              <Loader2 className="w-6 h-6 text-accent-cyan animate-spin" />
-              <p className="text-sm text-gray-400">Login window opened. Complete login in the browser...</p>
-            </div>
-          )}
 
           {loginState === "failed" && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
@@ -128,9 +122,33 @@ export default function LeadDashboard() {
             </div>
           )}
 
+          <input
+            type="email"
+            placeholder="LinkedIn email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loginState === "logging_in"}
+            className="w-full h-11 px-4 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50 mb-3"
+          />
+          <input
+            type="password"
+            placeholder="LinkedIn password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loginState === "logging_in"}
+            className="w-full h-11 px-4 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50 mb-4"
+          />
+
+          {loginState === "logging_in" && (
+            <div className="flex flex-col items-center gap-3 mb-4">
+              <Loader2 className="w-6 h-6 text-accent-cyan animate-spin" />
+              <p className="text-sm text-gray-400">Logging in to LinkedIn...</p>
+            </div>
+          )}
+
           <motion.button
             onClick={handleLogin}
-            disabled={loginState === "logging_in"}
+            disabled={loginState === "logging_in" || !email || !password}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-accent-cyan to-accent-purple text-white hover:opacity-90 shadow-lg shadow-accent-cyan/20 disabled:opacity-50 transition-all"
@@ -138,7 +156,7 @@ export default function LeadDashboard() {
             {loginState === "logging_in" ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Waiting for login...
+                Logging in...
               </>
             ) : (
               <>
