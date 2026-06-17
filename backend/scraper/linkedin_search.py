@@ -245,7 +245,7 @@ class LinkedInSearchEngine:
                 session = await self._get_session()
                 collected_urls = []
 
-                async def page_action(page, html):
+                async def page_action(page, html=None):
                     urls = await self._extract_post_urls_js(page)
                     collected_urls.extend(urls)
 
