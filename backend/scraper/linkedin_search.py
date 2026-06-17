@@ -96,14 +96,21 @@ def _extract_posts_from_dom(html: str) -> list[dict]:
             if not text or len(text) < 30:
                 continue
             profile_link = ""
-            link_el = item.css('a[href*="/in/"]').first
-            if link_el:
-                href = link_el.attrib.get("href", "")
-                if href.startswith("//"):
-                    href = "https:" + href
-                elif href.startswith("/"):
-                    href = "https://www.linkedin.com" + href
-                profile_link = href
+            for pattern in ('/in/', '/company/', '/school/', '/showcase/'):
+                link_el = item.css(f'a[href*="{pattern}"]').first
+                if link_el:
+                    href = link_el.attrib.get("href", "")
+                    if href.startswith("//"):
+                        href = "https:" + href
+                    elif href.startswith("/"):
+                        href = "https://www.linkedin.com" + href
+                    profile_link = href
+                    break
+            if not profile_link:
+                any_link = item.css('a[href*="linkedin.com"]').first
+                if any_link:
+                    href = any_link.attrib.get("href", "")
+                    profile_link = href if href.startswith("http") else ""
 
             # Try to get author name from near the profile link
             author_name = "LinkedIn User"
