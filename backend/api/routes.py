@@ -70,6 +70,13 @@ async def search_leads(req: SearchRequest):
         if result.get("error"):
             return SearchResponse(leads=[], session_id="", total_found=0, session_valid=False)
 
+        session_valid = result.get("session_valid", True)
+        if not session_valid:
+            return SearchResponse(
+                leads=[], session_id=result["session_id"],
+                total_found=0, session_valid=False, has_more=False
+            )
+
         leads_data = _save_leads(result["leads"])
 
         return SearchResponse(
@@ -77,6 +84,7 @@ async def search_leads(req: SearchRequest):
             session_id=result["session_id"],
             total_found=len(leads_data),
             has_more=result["has_more"],
+            session_valid=True,
         )
 
     except Exception as e:
@@ -90,13 +98,18 @@ async def load_more(req: LoadMoreRequest):
     try:
         result = await search_engine.load_more(req.session_id)
         if result.get("error"):
-            return LoadMoreResponse(leads=[], has_more=False)
+            return LoadMoreResponse(leads=[], has_more=False, session_valid=False)
+
+        session_valid = result.get("session_valid", True)
+        if not session_valid:
+            return LoadMoreResponse(leads=[], has_more=False, session_valid=False)
 
         leads_data = _save_leads(result["leads"])
 
         return LoadMoreResponse(
             leads=leads_data,
             has_more=result["has_more"],
+            session_valid=True,
         )
 
     except Exception as e:

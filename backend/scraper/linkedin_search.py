@@ -281,10 +281,10 @@ class LinkedInSearchEngine:
                     continue
 
                 final_url = result.url.lower() if hasattr(result, 'url') else ""
-                if "login" in final_url or "/auth/" in final_url:
-                    print(f"  Redirected to login!")
+                if any(x in final_url for x in ("login", "/auth/", "/checkpoint/", "challenge")):
+                    print(f"  Redirected to login/challenge! URL: {final_url}")
                     await self._cleanup()
-                    return []
+                    return None
 
                 html = result.html_content if hasattr(result, 'html_content') else result.body.decode()
                 print(f"  Got {len(html)} bytes HTML")
@@ -440,6 +440,8 @@ class LinkedInSearchEngine:
         self._sessions[session_id] = session
 
         raw = await self.scrape_query(queries[0], time_filter)
+        if raw is None:
+            return {"session_id": session_id, "leads": [], "has_more": False, "session_valid": False}
         leads = await self._ai_extract(raw, queries[0])
         session.store_results(leads)
         batch = session.get_next_batch()
@@ -448,6 +450,7 @@ class LinkedInSearchEngine:
             "session_id": session_id,
             "leads": batch or [],
             "has_more": len(leads) > 10 or len(queries) > 1,
+            "session_valid": True,
         }
 
     async def load_more(self, session_id: str) -> dict:
@@ -465,6 +468,8 @@ class LinkedInSearchEngine:
 
         print(f"\n--- Query {session.current_query_index + 1}: '{next_query}' ---")
         raw = await self.scrape_query(next_query, session.time_filter)
+        if raw is None:
+            return {"leads": [], "has_more": False, "session_valid": False}
         leads = await self._ai_extract(raw, next_query)
         session.store_results(leads)
         batch = session.get_next_batch()
@@ -474,6 +479,7 @@ class LinkedInSearchEngine:
         return {
             "leads": batch or [],
             "has_more": more_in_cache or remaining > 0,
+            "session_valid": True,
         }
 
     async def _cleanup(self):
