@@ -205,7 +205,14 @@ class LinkedInSearchEngine:
                 )
             resp = await loop.run_in_executor(None, call)
             result = json.loads(resp.choices[0].message.content)
-            queries = result if isinstance(result, list) else result.get("queries") or result.get("results") or list(result.values()) or []
+            if isinstance(result, list):
+                queries = result
+            elif isinstance(result, dict) and result.get("queries"):
+                queries = result["queries"]
+            elif isinstance(result, dict) and result.get("results"):
+                queries = result["results"]
+            else:
+                queries = []
             queries = [str(q).strip() for q in queries if q and str(q).strip()]
             seen = set()
             unique = []
@@ -340,7 +347,14 @@ class LinkedInSearchEngine:
                     resp = await loop.run_in_executor(None, call)
                     content = resp.choices[0].message.content
                     result = json.loads(content)
-                    items = result if isinstance(result, list) else result.get("leads") or result.get("results") or [result]
+                    if isinstance(result, list):
+                        items = result
+                    elif isinstance(result, dict) and result.get("leads"):
+                        items = result["leads"]
+                    elif isinstance(result, dict) and result.get("results"):
+                        items = result["results"]
+                    else:
+                        items = [result]
                     if isinstance(items, dict):
                         items = [items]
                     results = []
@@ -374,7 +388,7 @@ class LinkedInSearchEngine:
             matched = None
             for rp in raw_posts:
                 rp_name = rp.get("author_name", "").lower().strip()
-                if rp_name and (rp_name == name or name in rp.get("raw_text", "").lower()):
+                if rp_name and rp_name == name:
                     matched = rp
                     break
             if not matched:
@@ -409,7 +423,10 @@ class LinkedInSearchEngine:
                 ))
 
         leads.sort(key=lambda x: x.intent_score, reverse=True)
-        print(f"  Qualified {len(leads)} leads (top score: {leads[0].intent_score:.2f}" + (f" - {leads[0].author_name}" if leads else ")"))
+        if leads:
+            print(f"  Qualified {len(leads)} leads (top score: {leads[0].intent_score:.2f} - {leads[0].author_name})")
+        else:
+            print("  Qualified 0 leads")
         return leads
 
     async def start_search(self, topic: str, time_filter: str) -> dict:
