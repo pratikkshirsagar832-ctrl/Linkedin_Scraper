@@ -53,6 +53,13 @@ export async function triggerLogin(email: string, password: string): Promise<{ s
   return { success: false, message: "Login timed out" };
 }
 
+export async function importCookies(cookies: any[]): Promise<{ success: boolean; message: string }> {
+  return fetcher(`${BASE}/session/import-cookies`, {
+    method: 'POST',
+    body: JSON.stringify({ cookies }),
+  });
+}
+
 export async function getStats(): Promise<Stats> {
   return fetcher<Stats>(`${BASE}/stats`);
 }

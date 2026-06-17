@@ -137,6 +137,18 @@ async def session_login(req: LoginRequest):
     return {"success": True, "message": "Login started."}
 
 
+class CookieImportRequest(BaseModel):
+    cookies: list[dict]
+
+@router.post("/session/import-cookies")
+async def import_cookies(req: CookieImportRequest):
+    from scraper.session_manager import LinkedInSessionManager
+    mgr = LinkedInSessionManager()
+    mgr.save_cookies(req.cookies)
+    valid = any(c.get("name") == "li_at" for c in req.cookies)
+    return {"success": valid, "message": "Cookies imported." if valid else "li_at cookie not found."}
+
+
 @router.get("/session/login-status")
 async def session_login_status():
     global _login_task

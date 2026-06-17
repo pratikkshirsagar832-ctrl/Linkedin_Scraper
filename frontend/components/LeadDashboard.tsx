@@ -8,7 +8,7 @@ import LeadGrid from './LeadGrid';
 import LoadMoreBtn from './LoadMoreBtn';
 import StatsBar from './StatsBar';
 import HistoryTab from './HistoryTab';
-import { searchLeads, loadMoreLeads, getSessionStatus, triggerLogin } from '../lib/api';
+import { searchLeads, loadMoreLeads, getSessionStatus, triggerLogin, importCookies } from '../lib/api';
 import type { Lead, LeadState, TimeFilter } from '../lib/types';
 
 type LoginState = "checking" | "needed" | "logging_in" | "ready" | "failed";
@@ -25,6 +25,8 @@ export default function LeadDashboard() {
   const [loginError, setLoginError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginTab, setLoginTab] = useState<"cred"|"cookie">("cookie");
+  const [cookieJson, setCookieJson] = useState("");
   const [tab, setTab] = useState<TabType>("search");
 
   useEffect(() => {
@@ -100,74 +102,124 @@ export default function LeadDashboard() {
     );
   }
 
+  const handleImportCookies = useCallback(async () => {
+    setLoginState("logging_in");
+    setLoginError("");
+    try {
+      const parsed = JSON.parse(cookieJson);
+      const cookies = Array.isArray(parsed) ? parsed : parsed.cookies || [];
+      const res = await importCookies(cookies);
+      if (res.success) {
+        setLoginState("ready");
+      } else {
+        setLoginState("failed");
+        setLoginError(res.message || "No valid LinkedIn session cookie found");
+      }
+    } catch (e: any) {
+      setLoginState("failed");
+      setLoginError("Invalid JSON: " + e.message);
+    }
+  }, [cookieJson]);
+
   if (loginState === "needed" || loginState === "logging_in" || loginState === "failed") {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass rounded-2xl p-8 md:p-12 max-w-md w-full text-center"
+          className="glass rounded-2xl p-8 md:p-12 max-w-md w-full"
         >
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent-cyan/20 to-accent-purple/20 flex items-center justify-center mx-auto mb-5">
             <Linkedin className="w-8 h-8 text-accent-cyan" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">LinkedIn Login Required</h2>
-          <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-            Enter your LinkedIn credentials to log in. Your session is saved for future use.
-          </p>
+          <h2 className="text-xl font-bold text-white mb-2 text-center">LinkedIn Session Required</h2>
 
-          {loginState === "failed" && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
-              <p className="text-sm text-red-400">{loginError || "Login failed. Try again."}</p>
-            </div>
+          <div className="flex bg-white/5 rounded-lg p-0.5 mb-5">
+            <button onClick={() => setLoginTab("cookie")} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${loginTab === "cookie" ? "bg-accent-cyan/20 text-white" : "text-gray-500 hover:text-gray-300"}`}>Import Cookies</button>
+            <button onClick={() => setLoginTab("cred")} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${loginTab === "cred" ? "bg-accent-cyan/20 text-white" : "text-gray-500 hover:text-gray-300"}`}>Credentials</button>
+          </div>
+
+          {loginTab === "cookie" ? (
+            <>
+              <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+                Log into LinkedIn on your computer, install a cookie exporter extension, export cookies as JSON, then paste here.
+              </p>
+              <textarea
+                rows={6}
+                placeholder='[{"name":"li_at","value":"...","domain":".linkedin.com"},...]'
+                value={cookieJson}
+                onChange={(e) => setCookieJson(e.target.value)}
+                disabled={loginState === "logging_in"}
+                className="w-full px-4 py-3 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50 mb-4 resize-none font-mono"
+              />
+              <motion.button
+                onClick={handleImportCookies}
+                disabled={loginState === "logging_in" || !cookieJson.trim()}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-accent-cyan to-accent-purple text-white hover:opacity-90 shadow-lg shadow-accent-cyan/20 disabled:opacity-50 transition-all"
+              >
+                {loginState === "logging_in" ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Importing...</>
+                ) : (
+                  <><LogIn className="w-4 h-4" /> Import Cookies</>
+                )}
+              </motion.button>
+            </>
+          ) : (
+            <>
+              {loginState === "failed" && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-red-400">{loginError || "Login failed. Try again."}</p>
+                </div>
+              )}
+              <input
+                type="email"
+                placeholder="LinkedIn email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loginState === "logging_in"}
+                className="w-full h-11 px-4 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50 mb-3"
+              />
+              <input
+                type="password"
+                placeholder="LinkedIn password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loginState === "logging_in"}
+                className="w-full h-11 px-4 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50 mb-4"
+              />
+              <motion.button
+                onClick={handleLogin}
+                disabled={loginState === "logging_in" || !email || !password}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-accent-cyan to-accent-purple text-white hover:opacity-90 shadow-lg shadow-accent-cyan/20 disabled:opacity-50 transition-all"
+              >
+                {loginState === "logging_in" ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Logging in...</>
+                ) : (
+                  <><LogIn className="w-4 h-4" /> Login to LinkedIn</>
+                )}
+              </motion.button>
+            </>
           )}
-
-          <input
-            type="email"
-            placeholder="LinkedIn email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={loginState === "logging_in"}
-            className="w-full h-11 px-4 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50 mb-3"
-          />
-          <input
-            type="password"
-            placeholder="LinkedIn password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loginState === "logging_in"}
-            className="w-full h-11 px-4 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50 mb-4"
-          />
 
           {loginState === "logging_in" && (
-            <div className="flex flex-col items-center gap-3 mb-4">
-              <Loader2 className="w-6 h-6 text-accent-cyan animate-spin" />
-              <p className="text-sm text-gray-400">Logging in to LinkedIn...</p>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Loader2 className="w-4 h-4 text-accent-cyan animate-spin" />
+              <p className="text-sm text-gray-400">Processing...</p>
             </div>
           )}
 
-          <motion.button
-            onClick={handleLogin}
-            disabled={loginState === "logging_in" || !email || !password}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-accent-cyan to-accent-purple text-white hover:opacity-90 shadow-lg shadow-accent-cyan/20 disabled:opacity-50 transition-all"
-          >
-            {loginState === "logging_in" ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Logging in...
-              </>
-            ) : (
-              <>
-                <LogIn className="w-4 h-4" />
-                Login to LinkedIn
-              </>
-            )}
-          </motion.button>
+          {loginState === "failed" && loginTab === "cookie" && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mt-4">
+              <p className="text-sm text-red-400">{loginError || "Import failed"}</p>
+            </div>
+          )}
 
-          <p className="text-xs text-gray-600 mt-4">
-            Your session is saved securely for future use. Re-login anytime if it expires.
+          <p className="text-xs text-gray-600 mt-4 text-center">
+            Session is saved securely for future use.
           </p>
         </motion.div>
       </div>
