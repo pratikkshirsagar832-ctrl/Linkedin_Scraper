@@ -140,12 +140,26 @@ async def session_login(req: LoginRequest):
 class CookieImportRequest(BaseModel):
     cookies: list[dict]
 
+SAMESITE_MAP = {"no_restriction": "None", "unspecified": "Lax", "none": "None", "lax": "Lax", "strict": "Strict"}
+
+def _sanitize_cookies(cookies: list[dict]) -> list[dict]:
+    sanitized = []
+    for c in cookies:
+        samesite = c.get("sameSite", "")
+        if samesite and samesite.lower() in SAMESITE_MAP:
+            c["sameSite"] = SAMESITE_MAP[samesite.lower()]
+        elif not samesite or samesite.lower() not in ("lax", "strict", "none"):
+            c["sameSite"] = "Lax"
+        sanitized.append(c)
+    return sanitized
+
 @router.post("/session/import-cookies")
 async def import_cookies(req: CookieImportRequest):
     from scraper.session_manager import LinkedInSessionManager
     mgr = LinkedInSessionManager()
-    mgr.save_cookies(req.cookies)
-    valid = any(c.get("name") == "li_at" for c in req.cookies)
+    sanitized = _sanitize_cookies(req.cookies)
+    mgr.save_cookies(sanitized)
+    valid = any(c.get("name") == "li_at" for c in sanitized)
     return {"success": valid, "message": "Cookies imported." if valid else "li_at cookie not found."}
 
 

@@ -53,6 +53,17 @@ NOT = generic, promotion, news, offering services
 Posts:"""
 
 
+SAMESITE_MAP = {"no_restriction": "None", "unspecified": "Lax", "none": "None", "lax": "Lax", "strict": "Strict"}
+
+def _sanitize_samesite(cookies: list[dict]) -> list[dict]:
+    for c in cookies:
+        ss = c.get("sameSite", "")
+        if ss and ss.lower() in SAMESITE_MAP:
+            c["sameSite"] = SAMESITE_MAP[ss.lower()]
+        elif not ss or ss.lower() not in ("lax", "strict", "none"):
+            c["sameSite"] = "Lax"
+    return cookies
+
 def _load_session_cookies() -> list[dict] | None:
     if not SESSION_FILE.exists():
         return None
@@ -64,7 +75,7 @@ def _load_session_cookies() -> list[dict] | None:
             if not linkedin:
                 return None
             allowed = {"name", "value", "domain", "path", "expires", "httpOnly", "secure", "sameSite"}
-            return [{k: v for k, v in c.items() if k in allowed and v is not None} for c in linkedin]
+            return _sanitize_samesite([{k: v for k, v in c.items() if k in allowed and v is not None} for c in linkedin])
     except Exception as e:
         print(f"Cookie error: {e}")
         return None
