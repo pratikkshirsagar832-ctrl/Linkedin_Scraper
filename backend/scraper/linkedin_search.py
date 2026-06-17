@@ -23,6 +23,23 @@ TIME_FILTER_MAP = {
 LINKEDIN_SEARCH_URL = "https://www.linkedin.com/search/results/content/?keywords={keyword}&sortBy=%22date%22&datePosted={time_filter}"
 SESSION_FILE = Path("./sessions/linkedin_session.json")
 
+PROVIDER_PATTERNS = [
+    "i built", "i developed", "i created", "i made", "i launched",
+    "i offer", "i provide", "i specialize", "i help",
+    "building something similar", "let's talk", "dm me",
+    "we built", "we developed", "we create", "we offer", "we provide",
+    "looking for clients", "open for work", "available for hire",
+    "hire me", "my services", "our services",
+    "portfolio", "showcasing", "check my work",
+]
+
+def _is_provider(text: str) -> bool:
+    t = text.lower()
+    for p in PROVIDER_PATTERNS:
+        if p in t:
+            return True
+    return False
+
 LEAD_TYPE_PROMPTS = {
     "all": {
         "query": """You are a LinkedIn search query expert. Return a JSON object with key "queries" containing exactly 10 SHORT search queries (2-5 words each) that find people expressing buying intent.
@@ -39,7 +56,7 @@ Example for "web development":
 {"queries": ["looking for web developer", "need react developer", "hiring full stack dev", "help with website", "recommendation web developer", "need ecommerce site", "looking for frontend dev", "hiring software developer", "help with web app", "recommendation for developer"]}
 
 Generate 10 SHORT queries for the topic the user provides.""",
-        "extract": """You are analyzing LinkedIn posts for lead generation. Determine if the poster is looking for a service or has a problem to solve.
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts from people who NEED a service or HAVE A PROBLEM — NOT people offering services.
 
 Return JSON with key "leads" containing an array. For each lead:
 - "author_name": person's name
@@ -48,8 +65,17 @@ Return JSON with key "leads" containing an array. For each lead:
 - "confidence": 0.0 to 1.0
 - "reason": short explanation
 
-LEAD = needs help, looking for, hiring, asking for recommendations, complaining about a problem
-NOT = generic, promotion, news, offering services
+LEAD = looking to hire someone, needs help with a project, has a business problem, asking for recommendations, looking for a freelancer/agency/consultant
+
+NOT LEAD (REJECT THESE):
+- "I built X" / "I developed X" / "I created X" — showing off their own work
+- "Let's talk" / "DM me" — offering services
+- Sharing portfolio or case study of their own work
+- Announcing availability for freelance/contract work
+- Promoting their agency or services
+- Recruiting for their own company (they are the provider of the job)
+
+CRITICAL RULE: If the person is offering a service, selling something, or showing their own work → NOT A LEAD. Only people who need to BUY a service are leads.
 
 Posts:"""
     },
@@ -74,7 +100,7 @@ Example for "web development":
 {"queries": ["hiring web dev intern", "looking for frontend intern", "internship web developer", "hiring fresher react", "entry level web dev", "looking for ui ux intern", "internship full stack", "hiring graduate intern", "web development trainee", "need intern developer"]}
 
 Generate 10 SHORT queries for the topic the user provides.""",
-        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where companies/businesses are offering internships or looking for interns/entry-level candidates.
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where companies are looking to HIRE interns or entry-level talent — NOT posts from individuals offering their services.
 
 Return JSON with key "leads" containing an array. For each lead:
 - "author_name": person's name
@@ -83,8 +109,8 @@ Return JSON with key "leads" containing an array. For each lead:
 - "confidence": 0.0 to 1.0
 - "reason": short explanation
 
-LEAD = offering internship, hiring intern, looking for fresher/entry-level, internship program
-NOT = hiring experienced roles, promotion, news, offering services
+LEAD = offering internship position, hiring entry-level, looking for fresher, internship program
+NOT LEAD = person looking for internship themselves, showcasing projects, offering services, "DM me"
 
 Posts:"""
     },
@@ -109,7 +135,7 @@ Example for "web development":
 {"queries": ["looking for web agency", "need web design agency", "hire development agency", "looking for SEO agency", "need digital agency", "hire ui ux agency", "looking for branding agency", "need ecommerce agency", "hire creative agency", "looking for marketing agency"]}
 
 Generate 10 SHORT queries for the topic the user provides.""",
-        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where businesses or individuals are looking to hire an agency or external service provider.
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts from businesses who NEED to hire an agency — NOT posts from agencies offering services.
 
 Return JSON with key "leads" containing an array. For each lead:
 - "author_name": person's name
@@ -118,8 +144,13 @@ Return JSON with key "leads" containing an array. For each lead:
 - "confidence": 0.0 to 1.0
 - "reason": short explanation
 
-LEAD = looking for agency partners, need external help, seeking service provider, outsourcing work
-NOT = hiring employees directly, promotion, news, offering services
+LEAD = looking for agency partners, need external help, seeking service provider, want to outsource, need a marketing/design/dev agency
+
+NOT LEAD (REJECT):
+- "We are a [type] agency" / "our agency offers" — promoting their own agency
+- "I built X for clients" — showing off client work
+- "Let's talk if you need X" — offering services
+- Case studies or portfolio of agency work
 
 Posts:"""
     },
@@ -144,7 +175,7 @@ Example for "web development":
 {"queries": ["hiring react developer", "looking for full stack dev", "job opening frontend", "we are hiring web dev", "senior react role", "join our team developer", "full stack position", "career opportunity developer", "open position web", "recruiting software engineer"]}
 
 Generate 10 SHORT queries for the topic the user provides.""",
-        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where companies are hiring employees for full-time positions.
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where companies are hiring full-time employees for their own team.
 
 Return JSON with key "leads" containing an array. For each lead:
 - "author_name": person's name
@@ -153,8 +184,8 @@ Return JSON with key "leads" containing an array. For each lead:
 - "confidence": 0.0 to 1.0
 - "reason": short explanation
 
-LEAD = hiring employees, full-time position, job opening, recruiting, looking to fill a role
-NOT = internship, freelance project, agency seeking, promotion, news
+LEAD = hiring employees for their own company, full-time position, job opening at their firm
+NOT = internship, freelance project, agency offering services, recruitment agency posting on behalf of others
 
 Posts:"""
     },
@@ -179,7 +210,7 @@ Example for "web development":
 {"queries": ["need website built", "help with web app", "looking for freelance dev", "need ecommerce site", "help with landing page", "need react developer", "looking for web consultant", "help redesign website", "need portfolio site", "looking for wordpress help"]}
 
 Generate 10 SHORT queries for the topic the user provides.""",
-        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where individuals or small businesses need a one-time project or freelance help.
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts from individuals or businesses who NEED a freelancer or one-time project help — NOT freelancers offering their services.
 
 Return JSON with key "leads" containing an array. For each lead:
 - "author_name": person's name
@@ -188,8 +219,17 @@ Return JSON with key "leads" containing an array. For each lead:
 - "confidence": 0.0 to 1.0
 - "reason": short explanation
 
-LEAD = individual needing help, small business seeking freelancer, one-time project, looking for consultant
-NOT = company hiring full-time, internship, agency seeking, promotion, news
+LEAD = needs someone to build/design/fix something, looking for a freelancer, has a project they need help with, small business owner needing technical help
+
+NOT LEAD (REJECT):
+- "I built X" / "I developed Y" — showing off their own work
+- "Available for freelance" — looking for work
+- "Let's build something together" — offering services
+- Sharing their portfolio or project showcase
+- "DM me if you need" — selling services
+- "Open for opportunities" — job seeking
+
+CRITICAL: If they are offering to build or have built something for others → NOT a lead. Only people LOOKING to hire someone are leads.
 
 Posts:"""
     }
@@ -513,13 +553,16 @@ class LinkedInSearchEngine:
                     results = []
                     for item in items:
                         if isinstance(item, dict) and item.get("post_text"):
+                            text = item.get("post_text", "")
                             confidence = float(item.get("confidence", 0.5))
                             qualified = item.get("qualified", True)
                             score = confidence if qualified else max(0.1, confidence * 0.5)
+                            if _is_provider(text):
+                                score = 0
                             if score > 0.1:
                                 results.append({
                                     "author_name": item.get("author_name", "LinkedIn User"),
-                                    "post_text": item.get("post_text", "")[:2000],
+                                    "post_text": text[:2000],
                                     "score": score,
                                     "reason": item.get("reason", ""),
                                 })
