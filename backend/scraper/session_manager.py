@@ -43,7 +43,11 @@ class LinkedInSessionManager:
 
             print("Waiting for login to complete...")
             try:
-                page.wait_for_url("https://www.linkedin.com/feed/**", timeout=60000)
+                page.wait_for_function(
+                    "() => document.cookie.includes('li_at=')",
+                    timeout=60000
+                )
+                print("li_at cookie detected!")
                 cookies = context.cookies()
                 self.save_cookies([
                     {"name": c["name"], "value": c["value"], "domain": c["domain"],
@@ -58,33 +62,33 @@ class LinkedInSessionManager:
                 print(f"Login failed: {e}")
                 current_url = page.url
                 print(f"Current URL: {current_url}")
-                page.screenshot(path="/tmp/linkedin_login_failed.png")
-                print("Screenshot saved to /tmp/linkedin_login_failed.png")
+                try:
+                    page.screenshot(path="/tmp/linkedin_login_failed.png")
+                    print("Screenshot saved!")
+                except Exception:
+                    pass
 
                 if "checkpoint" in current_url or "security" in page.content().lower():
                     print("LinkedIn showing security checkpoint - needs verification")
                 elif "captcha" in current_url or "challenge" in current_url:
                     print("LinkedIn showing CAPTCHA or challenge")
-                elif "password" in current_url and "check" in current_url or "authwall" in current_url:
-                    print("LinkedIn showing incorrect credentials or account restricted")
+                elif "password" in current_url:
+                    print("LinkedIn showing incorrect credentials")
 
-                fallback_success = False
-                try:
-                    cookies = context.cookies()
-                    if any(c.get("name") == "li_at" for c in cookies):
-                        self.save_cookies([
-                            {"name": c["name"], "value": c["value"], "domain": c["domain"],
-                             "path": c.get("path", "/"), "httpOnly": c.get("httpOnly", False),
-                             "secure": c.get("secure", False), "sameSite": c.get("sameSite", "Lax")}
-                            for c in cookies
-                        ])
-                        print("Found li_at cookie even though navigation didn't match feed")
-                        fallback_success = True
-                except Exception:
-                    pass
+                cookies = context.cookies()
+                if any(c.get("name") == "li_at" for c in cookies):
+                    self.save_cookies([
+                        {"name": c["name"], "value": c["value"], "domain": c["domain"],
+                         "path": c.get("path", "/"), "httpOnly": c.get("httpOnly", False),
+                         "secure": c.get("secure", False), "sameSite": c.get("sameSite", "Lax")}
+                        for c in cookies
+                    ])
+                    print("Found li_at cookie anyway! Login succeeded.")
+                    browser.close()
+                    return True
 
                 browser.close()
-                return fallback_success
+                return False
 
     async def login_flow(self, email: str, password: str) -> bool:
         loop = asyncio.get_event_loop()
