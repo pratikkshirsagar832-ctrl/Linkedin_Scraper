@@ -12,6 +12,7 @@ search_engine = LinkedInSearchEngine()
 class SearchRequest(BaseModel):
     keyword: str
     time_filter: str = "latest"
+    lead_type: str = "all"
 
 
 class SearchResponse(BaseModel):
@@ -66,7 +67,7 @@ def _save_leads(leads: list) -> list[dict]:
 @router.post("/search")
 async def search_leads(req: SearchRequest):
     try:
-        result = await search_engine.start_search(req.keyword, req.time_filter)
+        result = await search_engine.start_search(req.keyword, req.time_filter, req.lead_type)
         if result.get("error"):
             return SearchResponse(leads=[], session_id="", total_found=0, session_valid=False)
 

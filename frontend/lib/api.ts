@@ -1,4 +1,4 @@
-import type { SearchResponse, LoadMoreResponse, SessionStatus, Stats, TimeFilter } from './types';
+import type { SearchResponse, LoadMoreResponse, SessionStatus, Stats, TimeFilter, LeadType } from './types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -14,10 +14,10 @@ async function fetcher<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export async function searchLeads(keyword: string, timeFilter: TimeFilter): Promise<SearchResponse> {
+export async function searchLeads(keyword: string, timeFilter: TimeFilter, leadType: LeadType = "all"): Promise<SearchResponse> {
   return fetcher<SearchResponse>(`${BASE}/search`, {
     method: 'POST',
-    body: JSON.stringify({ keyword, time_filter: timeFilter }),
+    body: JSON.stringify({ keyword, time_filter: timeFilter, lead_type: leadType }),
   });
 }
 

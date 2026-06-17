@@ -23,7 +23,9 @@ TIME_FILTER_MAP = {
 LINKEDIN_SEARCH_URL = "https://www.linkedin.com/search/results/content/?keywords={keyword}&sortBy=%22date%22&datePosted={time_filter}"
 SESSION_FILE = Path("./sessions/linkedin_session.json")
 
-QUERY_GEN_PROMPT = """You are a LinkedIn search query expert. Return a JSON object with key "queries" containing exactly 10 SHORT search queries (2-5 words each) that find people expressing buying intent.
+LEAD_TYPE_PROMPTS = {
+    "all": {
+        "query": """You are a LinkedIn search query expert. Return a JSON object with key "queries" containing exactly 10 SHORT search queries (2-5 words each) that find people expressing buying intent.
 
 CRITICAL: Queries must be SHORT (under 40 chars).
 
@@ -36,9 +38,8 @@ Focus on intent signals mixed with job titles:
 Example for "web development":
 {"queries": ["looking for web developer", "need react developer", "hiring full stack dev", "help with website", "recommendation web developer", "need ecommerce site", "looking for frontend dev", "hiring software developer", "help with web app", "recommendation for developer"]}
 
-Generate 10 SHORT queries for the topic the user provides."""
-
-AI_EXTRACT_PROMPT = """You are analyzing LinkedIn posts for lead generation. Determine if the poster is looking for a service or has a problem to solve.
+Generate 10 SHORT queries for the topic the user provides.""",
+        "extract": """You are analyzing LinkedIn posts for lead generation. Determine if the poster is looking for a service or has a problem to solve.
 
 Return JSON with key "leads" containing an array. For each lead:
 - "author_name": person's name
@@ -51,6 +52,148 @@ LEAD = needs help, looking for, hiring, asking for recommendations, complaining 
 NOT = generic, promotion, news, offering services
 
 Posts:"""
+    },
+    "intern": {
+        "query": """You are a LinkedIn search query expert. Return a JSON object with key "queries" containing exactly 10 SHORT search queries (2-5 words each) that find people offering internships or looking for interns/entry-level talent.
+
+CRITICAL: Queries must be SHORT (under 40 chars).
+
+Focus on:
+- "hiring intern"
+- "looking for intern"
+- "internship opportunity"
+- "hiring fresher"
+- "looking for trainee"
+- "entry level position"
+- "graduate intern"
+- "internship program"
+- "hiring apprentice"
+- "need intern"
+
+Example for "web development":
+{"queries": ["hiring web dev intern", "looking for frontend intern", "internship web developer", "hiring fresher react", "entry level web dev", "looking for ui ux intern", "internship full stack", "hiring graduate intern", "web development trainee", "need intern developer"]}
+
+Generate 10 SHORT queries for the topic the user provides.""",
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where companies/businesses are offering internships or looking for interns/entry-level candidates.
+
+Return JSON with key "leads" containing an array. For each lead:
+- "author_name": person's name
+- "post_text": main content
+- "qualified": true/false
+- "confidence": 0.0 to 1.0
+- "reason": short explanation
+
+LEAD = offering internship, hiring intern, looking for fresher/entry-level, internship program
+NOT = hiring experienced roles, promotion, news, offering services
+
+Posts:"""
+    },
+    "agency": {
+        "query": """You are a LinkedIn search query expert. Return a JSON object with key "queries" containing exactly 10 SHORT search queries (2-5 words each) that find people or businesses looking to hire an agency or external service provider.
+
+CRITICAL: Queries must be SHORT (under 40 chars).
+
+Focus on:
+- "looking for agency"
+- "need marketing agency"
+- "hire design agency"
+- "looking for SEO agency"
+- "need development agency"
+- "hire digital agency"
+- "looking for consultancy"
+- "need PR agency"
+- "hire creative agency"
+- "looking for media agency"
+
+Example for "web development":
+{"queries": ["looking for web agency", "need web design agency", "hire development agency", "looking for SEO agency", "need digital agency", "hire ui ux agency", "looking for branding agency", "need ecommerce agency", "hire creative agency", "looking for marketing agency"]}
+
+Generate 10 SHORT queries for the topic the user provides.""",
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where businesses or individuals are looking to hire an agency or external service provider.
+
+Return JSON with key "leads" containing an array. For each lead:
+- "author_name": person's name
+- "post_text": main content
+- "qualified": true/false
+- "confidence": 0.0 to 1.0
+- "reason": short explanation
+
+LEAD = looking for agency partners, need external help, seeking service provider, outsourcing work
+NOT = hiring employees directly, promotion, news, offering services
+
+Posts:"""
+    },
+    "company": {
+        "query": """You are a LinkedIn search query expert. Return a JSON object with key "queries" containing exactly 10 SHORT search queries (2-5 words each) that find companies hiring employees or filling full-time positions.
+
+CRITICAL: Queries must be SHORT (under 40 chars).
+
+Focus on:
+- "hiring X"
+- "looking for X developer"
+- "job opening X"
+- "we are hiring"
+- "full time position"
+- "senior X role"
+- "join our team"
+- "career opportunity"
+- "open position"
+- "recruiting X"
+
+Example for "web development":
+{"queries": ["hiring react developer", "looking for full stack dev", "job opening frontend", "we are hiring web dev", "senior react role", "join our team developer", "full stack position", "career opportunity developer", "open position web", "recruiting software engineer"]}
+
+Generate 10 SHORT queries for the topic the user provides.""",
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where companies are hiring employees for full-time positions.
+
+Return JSON with key "leads" containing an array. For each lead:
+- "author_name": person's name
+- "post_text": main content
+- "qualified": true/false
+- "confidence": 0.0 to 1.0
+- "reason": short explanation
+
+LEAD = hiring employees, full-time position, job opening, recruiting, looking to fill a role
+NOT = internship, freelance project, agency seeking, promotion, news
+
+Posts:"""
+    },
+    "one_client": {
+        "query": """You are a LinkedIn search query expert. Return a JSON object with key "queries" containing exactly 10 SHORT search queries (2-5 words each) that find individuals or small businesses needing a one-time service or project help.
+
+CRITICAL: Queries must be SHORT (under 40 chars).
+
+Focus on:
+- "need website"
+- "help with app"
+- "looking for freelancer"
+- "need graphic designer"
+- "help with logo"
+- "need developer"
+- "looking for consultant"
+- "help with automation"
+- "need virtual assistant"
+- "hire freelancer"
+
+Example for "web development":
+{"queries": ["need website built", "help with web app", "looking for freelance dev", "need ecommerce site", "help with landing page", "need react developer", "looking for web consultant", "help redesign website", "need portfolio site", "looking for wordpress help"]}
+
+Generate 10 SHORT queries for the topic the user provides.""",
+        "extract": """You are analyzing LinkedIn posts for lead generation. Find posts where individuals or small businesses need a one-time project or freelance help.
+
+Return JSON with key "leads" containing an array. For each lead:
+- "author_name": person's name
+- "post_text": main content
+- "qualified": true/false
+- "confidence": 0.0 to 1.0
+- "reason": short explanation
+
+LEAD = individual needing help, small business seeking freelancer, one-time project, looking for consultant
+NOT = company hiring full-time, internship, agency seeking, promotion, news
+
+Posts:"""
+    }
+}
 
 
 SAMESITE_MAP = {"no_restriction": "None", "unspecified": "Lax", "none": "None", "lax": "Lax", "strict": "Strict"}
@@ -132,11 +275,12 @@ def _extract_posts_from_dom(html: str) -> list[dict]:
 
 
 class SearchSession:
-    def __init__(self, session_id: str, topic: str, queries: list[str], time_filter: str):
+    def __init__(self, session_id: str, topic: str, queries: list[str], time_filter: str, lead_type: str = "all"):
         self.session_id = session_id
         self.topic = topic
         self.queries = queries
         self.time_filter = time_filter
+        self.lead_type = lead_type
         self.current_query_index = 0
         self.cache = {}
         self.offsets = {}
@@ -195,16 +339,17 @@ class LinkedInSearchEngine:
         tf = TIME_FILTER_MAP.get(time_filter, TIME_FILTER_MAP["latest"])
         return LINKEDIN_SEARCH_URL.format(keyword=quote(keyword), time_filter=tf)
 
-    async def generate_queries(self, topic: str) -> list[str]:
+    async def generate_queries(self, topic: str, lead_type: str = "all") -> list[str]:
         if not self._ai_client:
             return [topic] * 10
+        prompt = LEAD_TYPE_PROMPTS.get(lead_type, LEAD_TYPE_PROMPTS["all"])["query"]
         try:
             loop = asyncio.get_event_loop()
             def call():
                 return self._ai_client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
-                        {"role": "system", "content": QUERY_GEN_PROMPT},
+                        {"role": "system", "content": prompt},
                         {"role": "user", "content": f"Generate 10 intent-based LinkedIn search queries for: {topic}"}
                     ],
                     response_format={"type": "json_object"},
@@ -319,7 +464,7 @@ class LinkedInSearchEngine:
                     return []
         return []
 
-    async def _ai_extract(self, raw_posts: list[dict], query: str) -> list[Lead]:
+    async def _ai_extract(self, raw_posts: list[dict], query: str, lead_type: str = "all") -> list[Lead]:
         """Score posts with DeepSeek in parallel batches. Merge profile URLs from raw_posts by author_name."""
         if not raw_posts:
             return []
@@ -332,6 +477,7 @@ class LinkedInSearchEngine:
                 intent_score=0.5
             ) for p in raw_posts[:20]]
 
+        prompt = LEAD_TYPE_PROMPTS.get(lead_type, LEAD_TYPE_PROMPTS["all"])["extract"]
         leads = []
         batch_size = 10
         sem = asyncio.Semaphore(3)
@@ -345,7 +491,7 @@ class LinkedInSearchEngine:
                         return self._ai_client.chat.completions.create(
                             model="gpt-4o",
                             messages=[
-                                {"role": "system", "content": AI_EXTRACT_PROMPT},
+                                {"role": "system", "content": prompt},
                                 {"role": "user", "content": f"Find leads in these posts related to '{query}':\n\n{texts}"}
                             ],
                             response_format={"type": "json_object"},
@@ -436,20 +582,20 @@ class LinkedInSearchEngine:
             print("  Qualified 0 leads")
         return leads
 
-    async def start_search(self, topic: str, time_filter: str) -> dict:
+    async def start_search(self, topic: str, time_filter: str, lead_type: str = "all") -> dict:
         session_id = uuid.uuid4().hex[:12]
-        queries = await self.generate_queries(topic)
-        print(f"\n=== Session {session_id} for '{topic}' ===")
+        queries = await self.generate_queries(topic, lead_type)
+        print(f"\n=== Session {session_id} for '{topic}' (type: {lead_type}) ===")
         for i, q in enumerate(queries):
             print(f"  Q{i+1}: {q}")
 
-        session = SearchSession(session_id, topic, queries, time_filter)
+        session = SearchSession(session_id, topic, queries, time_filter, lead_type)
         self._sessions[session_id] = session
 
         raw = await self.scrape_query(queries[0], time_filter)
         if raw is None:
             return {"session_id": session_id, "leads": [], "has_more": False, "session_valid": False}
-        leads = await self._ai_extract(raw, queries[0])
+        leads = await self._ai_extract(raw, queries[0], lead_type)
         session.store_results(leads)
         batch = session.get_next_batch()
 
@@ -458,6 +604,7 @@ class LinkedInSearchEngine:
             "leads": batch or [],
             "has_more": len(leads) > 10 or len(queries) > 1,
             "session_valid": True,
+            "lead_type": lead_type,
         }
 
     async def load_more(self, session_id: str) -> dict:
@@ -477,7 +624,7 @@ class LinkedInSearchEngine:
         raw = await self.scrape_query(next_query, session.time_filter)
         if raw is None:
             return {"leads": [], "has_more": False, "session_valid": False}
-        leads = await self._ai_extract(raw, next_query)
+        leads = await self._ai_extract(raw, next_query, session.lead_type)
         session.store_results(leads)
         batch = session.get_next_batch()
 

@@ -31,6 +31,8 @@ export interface SessionStatus {
   session_file_exists: boolean;
 }
 
+export type LeadType = "all" | "intern" | "agency" | "company" | "one_client";
+
 export type TimeFilter = "latest" | "7_days" | "14_days" | "27_days" | "2_months";
 
 export interface Stats {

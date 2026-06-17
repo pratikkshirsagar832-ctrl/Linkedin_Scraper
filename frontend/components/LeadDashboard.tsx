@@ -9,7 +9,7 @@ import LoadMoreBtn from './LoadMoreBtn';
 import StatsBar from './StatsBar';
 import HistoryTab from './HistoryTab';
 import { searchLeads, loadMoreLeads, getSessionStatus, importCookies } from '../lib/api';
-import type { Lead, LeadState, TimeFilter } from '../lib/types';
+import type { Lead, LeadState, TimeFilter, LeadType } from '../lib/types';
 
 type LoginState = "checking" | "needed" | "logging_in" | "ready" | "failed";
 type TabType = "search" | "history";
@@ -51,7 +51,7 @@ export default function LeadDashboard() {
     }
   }, [cookieJson]);
 
-  const handleSearch = useCallback(async (kw: string, tf: TimeFilter) => {
+  const handleSearch = useCallback(async (kw: string, tf: TimeFilter, lt: LeadType = "all") => {
     setKeyword(kw);
     setTimeFilter(tf);
     setState('loading');
@@ -60,7 +60,7 @@ export default function LeadDashboard() {
     setSessionId('');
 
     try {
-      const res = await searchLeads(kw, tf);
+      const res = await searchLeads(kw, tf, lt);
       if (res.session_valid === false) {
         setLoginState("needed");
         setState('error');

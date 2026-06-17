@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Clock } from 'lucide-react';
-import type { TimeFilter, LeadState } from '../lib/types';
+import { Search, Clock, Users } from 'lucide-react';
+import type { TimeFilter, LeadState, LeadType } from '../lib/types';
 
 interface SearchPanelProps {
-  onSearch: (keyword: string, timeFilter: TimeFilter) => void;
+  onSearch: (keyword: string, timeFilter: TimeFilter, leadType: LeadType) => void;
   state: LeadState;
 }
 
@@ -18,14 +18,23 @@ const TIME_OPTIONS: { label: string; value: TimeFilter }[] = [
   { label: '2 Months', value: '2_months' },
 ];
 
+const LEAD_TYPE_OPTIONS: { label: string; value: LeadType; desc: string }[] = [
+  { label: 'All', value: 'all', desc: 'Any buying intent' },
+  { label: 'Intern', value: 'intern', desc: 'Internship / entry-level' },
+  { label: 'Agency', value: 'agency', desc: 'Looking for agency' },
+  { label: 'Company', value: 'company', desc: 'Full-time hiring' },
+  { label: 'One Client', value: 'one_client', desc: 'One-time project' },
+];
+
 export default function SearchPanel({ onSearch, state }: SearchPanelProps) {
   const [keyword, setKeyword] = useState('');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('latest');
+  const [leadType, setLeadType] = useState<LeadType>('all');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
-    onSearch(keyword.trim(), timeFilter);
+    onSearch(keyword.trim(), timeFilter, leadType);
   };
 
   return (
@@ -45,6 +54,31 @@ export default function SearchPanel({ onSearch, state }: SearchPanelProps) {
             className="w-full h-12 pl-12 pr-4 rounded-xl bg-dark-900 border border-white/5 text-white placeholder-gray-600 focus:outline-none focus:border-accent-cyan/30 focus:ring-1 focus:ring-accent-cyan/20 transition-all text-sm"
             disabled={state === 'loading'}
           />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-gray-500" />
+            <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Lead Type</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {LEAD_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setLeadType(opt.value)}
+                disabled={state === 'loading'}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  leadType === opt.value
+                    ? 'bg-accent-purple/15 text-accent-purple border border-accent-purple/30'
+                    : 'bg-dark-800 text-gray-400 border border-white/5 hover:border-white/10'
+                }`}
+                title={opt.desc}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-5">
@@ -87,7 +121,7 @@ export default function SearchPanel({ onSearch, state }: SearchPanelProps) {
           ) : (
             <>
               <Search className="w-4 h-4" />
-              Find Leads
+              Find {leadType === 'all' ? 'Leads' : `${LEAD_TYPE_OPTIONS.find(o => o.value === leadType)?.label} Leads`}
             </>
           )}
         </motion.button>
